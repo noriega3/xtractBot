@@ -1,0 +1,33 @@
+{
+  "name": "xtract-bot",
+  "version": "0.0.1",
+  "description": "discord, twitch bot",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/noriega3/xtractBot.git"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "app",
+    "twitch",
+    "api"
+  ],
+  "author": "Brian Noriega",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/noriega3/xtractBot/issues"
+  },
+  "homepage": "https://github.com/noriega3/xtractBot#readme",
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "discord.js": "^11.3.2",
+    "lodash": "^4.17.10",
+    "twitch-helix": "^1.0.7",
+    "twitch-webhook": "^1.2.4"
+  }
+}

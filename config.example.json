@@ -1,0 +1,29 @@
+{
+  "discord": {
+    "token": "",
+    "owner": "",
+    "prefix": "`",
+    "roles": {
+      "moderator": ""
+    },
+    "streamChannel": "",
+    "podcast": [
+      {
+        "voiceChannel": "",
+        "textChannel" : ""
+      }
+    ]
+  },
+  "twitch":{
+    "webhook":{
+      "client_id": "",
+      "secret": "",
+      "callback": ""
+    },
+    "api": {
+      "clientId": "",
+      "clientSecret": ""
+    },
+    "trackChannels": []
+  }
+}
