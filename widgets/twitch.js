@@ -5,6 +5,7 @@ const config = require('./config.json')
 const _ = require('lodash')
 const _get = require('lodash/get')
 const Promise = require('bluebird')
+const getTrackedStreams = require('./utils/getTrackedStreams')
 Promise.promisifyAll(require("fs"))
 
 let twitchIds,twitchStreams
@@ -54,22 +55,46 @@ twitchWebhook.on('subscribe', (obj) => {
     console.log('did sub', obj)
 })
 
-getStreamInfoByUsernames = async usernames => {
+getStreamInfoByIds = async (users) => {
+    if (!users || _.isEmpty(users)) {
+        return []
+    }
+    let userIds = _.map(users, ({user_id}) => user_id)
+    const queryPromises = []
+    for (const userIdsChunk of _.chunk(userIds, 100)) { // /users endpoint has a cap of 100, so we split the query into chunks
+        queryPromises.push(twitchApi.sendHelixRequest("streams", {
+            requestOptions: {
+                qs: {
+                    user_id: userIdsChunk
+                }
+            }
+        }))
+    }
+    return await Promise.all(queryPromises).then((statuses) => {
+        let online = _.flatten(statuses[0])
+        let offline = _.differenceBy(users, online, 'user_id');
+        return online.concat(offline)
+    })
+}
+
+getTrackedStreamsIds = async usernames => {
     if (!usernames || _.isEmpty(usernames)) {
         return []
     }
     const queryPromises = []
     for (const usernamesChunk of _.chunk(usernames, 100)) { // /users endpoint has a cap of 100, so we split the query into chunks
-        queryPromises.push(twitchApi.sendHelixRequest("streams", {
+        queryPromises.push(twitchApi.sendHelixRequest("users", {
             requestOptions: {
                 qs: {
-                    user_login: usernamesChunk
+                    login: usernamesChunk
                 }
             }
         }))
     }
-    const twitchUsers = await Promise.all(queryPromises)
-    return _.flatten(twitchUsers)
+    return await Promise.all(queryPromises).then(([ids]) => {
+        console.log('promise all done', _.flatten(ids))
+        return _.flatten(ids)
+    })
 }
 
 
@@ -85,35 +110,25 @@ twitchWebhook.on('error', (err) => {
 })
 
 module.exports = {
-    start: (discordBot) => {
-        console.log('starting')
 
-        return this.getTrackedStreams()
-            .then(discordBot.setStreamMessage)
-            .map((user) => {
-                const user_id = _get(user, 'user_id')
-                console.log('got user', user)
-                return twitchWebhook.subscribe('streams', {id})
+    start: async (discordBot) => {
+        let streams = await getTrackedStreams()
+        let statuses = await getStreamInfoByIds(streams)
 
-                    .catch((err) => {
-                        throw new Error('unexpected error in #subscribe: ' + err.message)
-                    }).then(() => {
+        await discordBot.setStreamMessage(statuses)
+
+        await _.each(streams, (info) => {
+            const user_id = _get(info, 'user_id')
+            return twitchWebhook.subscribe('streams', {id: user_id})
+                .catch((err) => {
+                    throw new Error('unexpected error in #subscribe: ' + err.message)
+                }).then(() => {
                     console.log('subbed to ', user_id)
                 })
-            })
-            .then(getStreamInfoByUsernames)
-            .then((users) => {
-                //now discord
-                return discordBot.setStreamMessage(users)
-            })
+        })
+        return 'OK'
     },
-    getTrackedStreams: () => {
-        return fs.readFileAsync('twitchStreams.json', 'utf8')
-            .then(() => {
-                twitchStreams = JSON.parse(data); //now it an object
-            })
-            .catchReturn({})
-    },
+
     updateTrackedStreams:(twitchStreams = {}) => {
         return Promise.mapSeries(twitchApi.getTwitchUsersByName(config.twitch.trackChannels))
             .then((updatedTwitchStreams) => {

@@ -1,5 +1,6 @@
 const disBot = require('./disBot.js')
-const TwitchBot = require('./twitchBot.js')
+const widgets = require('./widgets')
+const Promise = require('bluebird')
 
 console.log('starting up')
 /*
@@ -8,20 +9,20 @@ async function launchDiscordBot (){
 }*/
 
 
-async function main(){
+function main(){
     //const discordBot = await DiscordBot.start()
-    await disBot.start()
-
-    await disBot.clearMessages()
-
-    await TwitchBot.start(disBot)
-
-    return 'OK'
+    return Promise.all([
+        disBot.start(),
+        disBot.clearMessages(),
+        widgets.init(disBot)
+    ]).then((err, res) =>{
+        console.log('main finished', err, res)
+        return 'OK'
+    })
 }
 process.stdin.resume()
 
-main()
-    .then(v => console.log(v))
+main().then(v => console.log(v))
 
 process.on('SIGINT', () => {
     console.log('signit called')

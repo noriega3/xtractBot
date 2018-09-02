@@ -4,7 +4,11 @@ const fs = require('fs')
 const config = require("./config.json");
 const _ = require('lodash')
 
-
+const defaultMessage = {
+    "embed":{
+        "fields": []
+    }
+}
 // Load up the discord.js library
 
 // This is your client. Some people call it `bot`, some people call it `self`,
@@ -23,16 +27,7 @@ let lastMessage
 // config.token contains the bot's token
 // config.prefix contains the message prefix.
 
-client.on("ready", () => {
-    // This event will run if the bot starts, and logs in, successfully.
-    console.log(`Bot has started, with ${client.users.size} users, in ${client.channels.size} channels of ${client.guilds.size} guilds.`);
-    // Example of changing the bot's playing game to something useful. `client.user` is what the
-    // docs refer to as the "ClientUser".
-    client.user.setActivity(`Serving ${client.guilds.size} servers`);
-    voiceChannel = client.channels.get(config.discord.podcast.voiceChannel)
-    textChannel = client.channels.get(config.discord.podcast.textChannel)
-    streamChannel = client.channels.get(config.discord.streamChannel)
-});
+
 
 client.on("guildCreate", guild => {
     // This event triggers when the bot joins a guild.
@@ -191,24 +186,39 @@ client.on("message", async message => {
     }
 });
 
-const defaultMessage = {
-    "embed":{
-        "fields": []
-    }
-}
+
 module.exports = {
-    start: async () => {
-        return await client.login(config.discord.token)
+    start: () => {
+       return client
+            .login(config.discord.token)
+            .then((token) => {
+                // This event will run if the bot starts, and logs in, successfully.
+                console.log(`Bot has started, with ${client.users.size} users, in ${client.channels.size} channels of ${client.guilds.size} guilds.`);
+                // Example of changing the bot's playing game to something useful. `client.user` is what the
+                // docs refer to as the "ClientUser".
+                client.user.setActivity(`Serving ${client.guilds.size} servers`);
+                client.user.sweepMessages();
+                voiceChannel = client.channels.get(config.discord.podcast.voiceChannel)
+                textChannel = client.channels.get(config.discord.podcast.textChannel)
+                streamChannel = client.channels.get(config.discord.streamChannel)
+                streamMessage = streamChannel.send('Starting Up')
+
+                console.log('finished with client login and setup')
+
+                return streamMessage
+            })
     },
     updateStreams(userData){
 
     },
     clearMessages: async (channelId="streams-and-deals") => {
-        const channel = await streamChannel.messages
-        console.log(channel)
+        console.log('clering messages')
+
+        const channel = await streamChannel.message
         if (!channel || !channel.fetchMessages) return
         const fetched = await channel.fetchMessages({count: 50})
         return channel.bulkDelete(fetched)
+            .tap(console.log)
             .catch(error => message.reply(`Couldn't delete messages because of: ${error}`));
     },
     updateStreams: function(users){
@@ -256,8 +266,13 @@ module.exports = {
         let found
         _.each(users, (user, i) => {
             found = _.find(defaultMessage.embed.fields, {'name': `twitch.tv/${config.twitch.trackChannels[i]}`})
+            console.log('user value', user)
             found.value = user.type
         })
+
+        console.log('message', defaultMessage)
+        console.log(defaultMessage.embed.fields)
+
         return await streamChannel.send(defaultMessage).then(msg => {
                 console.log(`New message content: ${msg}`, msg)
                 lastMessage = msg
